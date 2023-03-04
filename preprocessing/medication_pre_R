@@ -1,1 +1,90 @@
-dd
+library("dplyr")
+library("stringr")
+med <- read.csv(file="C://Users//kosai//Desktop//LEDD_Concomitant_Medication_Log (1).csv")
+str_detect("CARBIDOPA/LEVODOPA (25/100)", "LEV")
+med$c <- c(0)
+for(i in 1:6856){
+  if((str_detect(med$LEDTRT[i], "LEVOD"))|(str_detect(med$LEDTRT[i], "Levodopa"))){
+    med$c[i] <- 1
+  }
+  else if((str_detect(med$LEDTRT[i], "PRAMIPEXOLE"))|(str_detect(med$LEDTRT[i], "Pramipexole"))|(str_detect(med$LEDTRT[i], "Ropin"))|(str_detect(med$LEDTRT[i], "ROPIN"))){
+    med$c[i] <- 2
+  }
+  else{
+    med$c[i] <- 3
+  }
+}
+
+med[which(is.na(med$stop)), "stop"] <- 2399
+
+df <- read.csv(file="C://Users//kosai//Desktop//df1.csv")
+ 
+for (i in 1:length(df$PATNO)){
+  if(df$year[i] == 1){
+    df$DATE2[i] <- df$DATE2[i] + 50
+  }
+  else{
+    df$DATE2[i] <- df$DATE2[i-1] + 100
+  }
+}
+med$stop <- as.integer(med$stop)
+med$s <- c(0)
+for (i in 1:6856){
+  med$s[i] = floor(med$start[i]/100)*100 + 100 * ((med$start[i]) - (floor(med$start[i]/100)*100)) / 12 
+}
+med$t <- c(0)
+for (i in 1:6856){
+  med$t[i] = floor(med$stop[i]/100)*100 + 100 * ((med$stop[i]) - (floor(med$stop[i]/100)*100)) / 12 
+}
+
+df$med1 <- c(0);df$med2 <- c(0);df$med3 <- c(0);
+
+for (i in 1:3379){
+  med.t <- med %>% filter(PATNO == df$PATNO[i])
+  if(length(med.t$REC_ID != 0)){
+    for (j in 1:length(med.t$PATNO)){
+      if ((med.t$s[j]<df$DATE2[i]) & (med.t$t[j]>df$DATE2[i])){
+        if(med.t$c[j] == 1){
+          df$med1[i] <- 1
+        }
+        else if(med.t$c[j] == 2){
+          df$med2[i] <- 1
+        }
+        else{
+          df$med3[i] <- 1
+        }
+      }
+    }
+  }
+}
+df$med <- c(0)
+for (i in 1:3379){
+  if((df$med1[i] ==0)&(df$med2[i] ==0)&(df$med3[i] ==0)){
+    df$med[i] <- 0
+  }
+  else if((df$med1[i] ==1)&(df$med2[i] ==0)&(df$med3[i] ==0)){
+    df$med[i] <- 1
+  }
+  else if((df$med1[i] ==0)&(df$med2[i] ==1)&(df$med3[i] ==0)){
+    df$med[i] <- 2
+  }
+  else if((df$med1[i] ==0)&(df$med2[i] ==0)&(df$med3[i] ==1)){
+    df$med[i] <- 3
+  }
+  else if((df$med1[i] ==1)&(df$med2[i] ==1)&(df$med3[i] ==0)){
+    df$med[i] <- 4
+  }
+  else if((df$med1[i] ==0)&(df$med2[i] ==1)&(df$med3[i] ==1)){
+    df$med[i] <- 5
+  }
+  else if((df$med1[i] ==1)&(df$med2[i] ==0)&(df$med3[i] ==1)){
+    df$med[i] <- 6
+  }
+  else if((df$med1[i] ==1)&(df$med2[i] ==1)&(df$med3[i] ==1)){
+    df$med[i] <- 7
+  }
+}
+write.csv(df,file="C://Users//kosai//Desktop//df-1.csv")
+
+hist(df$med, breaks=c(-1,0,1,2,3,4,5,6,7))
+
