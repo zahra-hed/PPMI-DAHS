@@ -1,48 +1,54 @@
 A Markov Decision Process modeling approach to Parkinson Disease 
 
-23 features used
+Introduction
+ Parkinson is a chronic disease, meaning patients usually suffer from it for a very long time.  Normally a perfect cure does not exsist and patients focus on maintaining the current state, making sure it does not get worse.  In this effort both medication and regualar life pattern plays a major role.  Markov models show advantage in explaining long-term series of events, and since medication plays a major role this model is expanded into a Markov Decision Model.
+ 
+ This study focuses on trying to explain the progress of Parkinson disease using MDP.  Data 
 
-Concomitant medication log
+Variables used
 
-Features
-Non-motor
--Neuropsychological 신경심리
-Benton Judgment of Line orientation - 공간지각
-Hopkins verbal learning test - 인지능력
-Symbol Digit Modalities test - 
-Modified Semantic Fluency - 
-Montreal Cognitive Assessment - 
--Neurobehavior 신경행동
-Geriatic depression scale - 기분/우울
-State-Trait Anxiety Inventory - 
-QUIP
--Sleep disorder 수면
-Epworth Sleepiness Scale - 피곤함
--Autonomic  자율
-SCOPA-AUT - 
-RBD
-LNS
-UPSIT
-Motor
-MDS UPDRS1
-MDS UPDRS2
-MDS UPDRS3
-MDS UPDRS4
+ Features
+ Non-motor
+ -Neuropsychological 신경심리
+ Benton Judgment of Line orientation - 공간지각
+ Hopkins verbal learning test - 인지능력
+ Symbol Digit Modalities test - 
+ Modified Semantic Fluency - 
+ Montreal Cognitive Assessment - 
+ -Neurobehavior 신경행동
+ Geriatic depression scale - 기분/우울
+ State-Trait Anxiety Inventory - 
+ QUIP
+ -Sleep disorder 수면
+ Epworth Sleepiness Scale - 피곤함
+ -Autonomic  자율 
+ SCOPA-AUT - 
+ RBD
+ LNS
+ UPSIT
+ Motor
+ MDS UPDRS1
+ MDS UPDRS2
+ MDS UPDRS3
+ MDS UPDRS4
 
-Patient info
-death
-age
-diagnosis
-education
+ Patient Info
+ death
+ age
+ diagnosis
+ education
+ 
+ Medication
 
 
-additional columns:
-DATE  - YYMM format of date : June 2017 -> 1706
-DATE2 - column DATE where 12 month mapped to scale of 100 : 1706 -> 1750
-DATE_I - Date interval, the time passed since the prior visit
-NUM - visit number, integer from 1
-N_MAX - the total number of visits for that patient
-
+Preprocessing
+ additional columns are created for further research
+ DATE  - YYMM format of date : June 2017 -> 1706
+ DATE2 - column DATE where 12 month mapped to scale of 100 : 1706 -> 1750
+ DATE_I - Date interval, the time passed since the prior visit
+ NUM - visit number, integer from 1
+ N_MAX - the total number of visits for a particular patient
+ 
 Project Pipeline
 
  - 376 ( recheck) patients who have been recorded for more than 7+ years are selected from PPMI dataset
