@@ -43,12 +43,12 @@ DATE_I - Date interval, the time passed since the prior visit
 NUM - visit number, integer from 1
 N_MAX - the total number of visits for that patient
 
+Project Pipeline
 
-376 ( recheck) patients who have been recorded for more than 7+ years are selected from PPMI dataset
+ - 376 ( recheck) patients who have been recorded for more than 7+ years are selected from PPMI dataset
+ - dataset is changed to a yearly-scale, features and previous medication is used to define the current state, medication used afterwards defines the action
+ - k-means clustering approach
+ - dimesion reduction : PCA / t-SNE / UMAP (PCA works the best) -> visualization of clusters
+ - heatmap summarizing/visualizing the clusters 
+ - state holding time + state transition probability tested 
 
-dataset is configed to
-
-visualization by
- - dimesnion reduction : PCA / t-SNE / UMAP (PCA works the best)
- - heatmap summarizing the clusters
- - 
