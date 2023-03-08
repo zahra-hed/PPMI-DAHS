@@ -77,15 +77,15 @@ preprocessing <- function(inputdata){
 }
 for (i in 1:length(temp)) assign(temp[i], preprocessing(read.csv(temp[i]))) ; temp <- NULL; myfiles <- NULL
 
-total_features <- full_join(data.frame(KEY = as.vector(BJLO.csv$KEY), BJLO = as.vector(BJLO.csv$JLO_TOTRAW)),
+total_features <- list(data.frame(KEY = as.vector(BJLO.csv$KEY), BJLO = as.vector(BJLO.csv$JLO_TOTRAW)),
                        data.frame(KEY = as.vector(ESS.csv$KEY), ESS = as.vector(ESS.csv$TOTAL)),
                        data.frame(KEY = as.vector(GDS.csv$KEY), GDS = as.vector(GDS.csv$GDS_SUM)),
-                       data.frame(KEY = as.vector(HVLT.csv$KEY), HBLT = as.vector(HVLT.csv$DVT_TOTAL_RECALL)),
+                       data.frame(KEY = as.vector(HVLT.csv$KEY), HVLT = as.vector(HVLT.csv$DVT_TOTAL_RECALL)),
                        data.frame(KEY = as.vector(LNS.csv$KEY), LNS = as.vector(LNS.csv$LNS_TOTRAW)),
                        data.frame(KEY = as.vector(M1.csv$KEY), M1 = as.vector(M1.csv$NP1RTOT)),
                        data.frame(KEY = as.vector(M1Q.csv$KEY), M1Q = as.vector(M1Q.csv$NP1PTOT)),
                        data.frame(KEY = as.vector(M2.csv$KEY), M2 = as.vector(M2.csv$NP2PTOT)),
-                       data.frame(KEY = as.vector(M3.csv$KEY), M3 = as.vector(M3.csv$NP3TOT)),
+                       data.frame(KEY = as.vector(M3.csv$KEY), M3 = as.vector(M3.csv$NP3TOT), HNY = as.integer(as.vector(M3.csv$NHY)), na.rm=TRUE),
                        data.frame(KEY = as.vector(M4.csv$KEY), M4 = as.vector(M4.csv$NP4TOT)),
                        data.frame(KEY = as.vector(MCI.csv$KEY), MCI = as.vector(MCI.csv$COGSTATE)),
                        data.frame(KEY = as.vector(MOCA.csv$KEY), MOCA = as.vector(MOCA.csv$MCATOT)),
@@ -94,7 +94,7 @@ total_features <- full_join(data.frame(KEY = as.vector(BJLO.csv$KEY), BJLO = as.
                        data.frame(KEY = as.vector(RBD.csv$KEY), RBD = as.vector(RBD.csv$sum)),
                        data.frame(KEY = as.vector(SDMT.csv$KEY), SDMT = as.vector(SDMT.csv$SDMTOTAL)),
                        data.frame(KEY = as.vector(STAI.csv$KEY), STAI = as.vector(STAI.csv$STAI_SUM)),
-                       data.frame(KEY = as.vector(SCOPA-AUT.csv$KEY), SCOPA = as.vector(SCOPA-AUT.csv$sum))
+                       data.frame(KEY = as.vector(`SCOPA-AUT.csv`$KEY), SCOPA = as.vector(`SCOPA-AUT.csv`$SUM))
 )
 df <- total_features %>% reduce(full_join, by = "KEY") ; total_features <- NULL
 
@@ -116,14 +116,26 @@ for (i in 1:length(df$PATNO)){
 
 df <- df %>%
   group_by(PATNO, year) %>%                # class별로 분리
-  summarise(BJLO = mean(BJLO), HVLT = mean(HVLT), SDMT = mean(SDMT), MSF = mean(MSF), MCI = mean(MCI),
-            MOCA = mean(MOCA), GDS = mean(GDS), STAI = mean(STAI), QUIP = mean(QUIP), ESS = mean(ESS), RBD = mean(RBD), LNS = mean(LNS),
-            SCOPA = mean(SCOPA_AUT), M1 = mean(M1), M2 = mean(M2), M3 = mean(M3), M4 = mean(M4), PATNO = mean(PATNO), 
+  summarise(BJLO = mean(BJLO, na.rm=TRUE), HVLT = mean(HVLT, na.rm=TRUE), SDMT = mean(SDMT, na.rm=TRUE), MSF = mean(MSF, na.rm=TRUE), MCI = mean(MCI, na.rm=TRUE),
+            MOCA = mean(MOCA, na.rm=TRUE), GDS = mean(GDS, na.rm=TRUE), STAI = mean(STAI, na.rm=TRUE), QUIP = mean(QUIP, na.rm=TRUE), ESS = mean(ESS, na.rm=TRUE), RBD = mean(RBD, na.rm=TRUE), LNS = mean(LNS, na.rm=TRUE),
+            SCOPA = mean(SCOPA, na.rm=TRUE), M1 = mean(M1, na.rm=TRUE), M2 = mean(M2, na.rm=TRUE), M3 = mean(M3, na.rm=TRUE), M4 = mean(M4, na.rm=TRUE), HNY = mean(HNY, na.rm=TRUE), PATNO = mean(PATNO), 
             DATE= min(DATE), DATE2 = min(DATE2)
+); df$REC_ID<-c(0)
+df <- preprocessing(df)
+
+
+setwd("C://Users//kosai//Desktop//PPMI//info")
+(temp = list.files(pattern="*.csv"))
+myfiles = lapply(temp, read.delim)
+for (i in 1:length(temp)) assign(temp[i],read.csv(temp[i])) ; temp <- NULL; myfiles <- NULL
+
+
+info <- list(
+  distinct(data.frame(PATNO = as.vector(Participant_Status.csv$PATNO),CONCOHORT = as.vector(Participant_Status.csv$CONCOHORT), age = as.vector(Participant_Status.csv$ENROLL_AGE))),
+  distinct(data.frame(PATNO = as.vector(Demographics.csv$PATNO), sex = as.vector(Demographics.csv$SEX))),
+  data.frame(distinct(data.frame(PATNO = as.vector(Socio_Economics.csv$PATNO), edu = as.vector(Socio_Economics.csv$EDUCYRS))) %>% group_by(PATNO) %>% summarise(edu = max(edu, na.rm=TRUE))),
+  distinct(data.frame(PATNO = as.vector(Conclusion.csv$PATNO), death = as.vector(Conclusion.csv$WDRSN))),
+  distinct(data.frame(PATNO = Diagnosis.csv$PATNO, diag = Diagnosis.csv$PDDXDT))
 )
-
-
-
-##YEAR CUT
-##CONCOHRT CUT
-total <- total |> filter(CONCOHORT == 1)
+info.df <- info %>% reduce(full_join, by = "PATNO") ; info <- NULL
+df <- left_join(df,info.df)
