@@ -1,13 +1,14 @@
 install.packages('dplyr')
 install.packages('tidyverse')
-install.packages('mice')
 
 library("dplyr")
 library('tidyverse')
-library('mice')
+library("mice")
 
+setwd("C://Users//kosai//Desktop//PPMI//features")
+(temp = list.files(pattern="*.csv"))
+myfiles = lapply(temp, read.delim)
 preprocessing <- function(inputdata){
-  if(inputdata$patage
   inputdata <- inputdata %>% group_by(PATNO) %>% arrange(DATE, .by_group=TRUE)
   ##RECID creation col : NO
   patno_temp = 1
@@ -75,11 +76,6 @@ preprocessing <- function(inputdata){
   inputdata <- inputdata %>% filter(DATE_I != 0)
   return(inputdata)
 }
-
-
-setwd("C://Users//kosai//Desktop//PPMI//features")
-(temp = list.files(pattern="*.csv"))
-myfiles = lapply(temp, read.delim)
 for (i in 1:length(temp)) assign(temp[i], preprocessing(read.csv(temp[i]))) ; temp <- NULL; myfiles <- NULL
 
 total_features <- list(data.frame(KEY = as.vector(BJLO.csv$KEY), BJLO = as.vector(BJLO.csv$JLO_TOTRAW)),
@@ -144,24 +140,33 @@ info <- list(
 )
 info.df <- info %>% reduce(full_join, by = "PATNO") ; info <- NULL
 df <- left_join(df,info.df)
-patients <- distinct(data.frame(PATNO = as.vector(df$PATNO), years = as.vector(df$N_MAX)))
-#hist(patients$years, main="Number of Patients /per year")
+
+hist(patients$years, main="Number of Patients /per year", breaks = c(6,7,8,9,10,11,12,13))
 
 df <- preprocessing(df %>% filter(N_MAX>=7) %>% filter(CONCOHORT == 1))
+patlist <- df %>% filter(NUM == 1)
+patlist[c("PATNO","DATE")] -> patlist, names(patlist) <- c("PATNO", "FV")
 
-#age, diagnosis, enddate 케어하기
-for (i in 2:df$PATNO){
-   if(df$PATNO[i] == df$PATNO[i-1]){
-     df$age[i] <- df$age[i-1] + 1
-     df$diagnosis[i] <- df$diagnosis[i-1] + 1
-   }
+#age care
+for (i in 1:length(df$PATNO)){
+  if (df$NUM[i] != 1){
+    df$age[i] <- df$age[i-1] + df$year[i] - df$year[i-1]
+    df$DATE[i] <- df$DATE[i-1] + (df$year[i] - df$year[i-1])*100
+    df$DATE2[i] <- df$DATE2[i-1] + (df$year[i] - df$year[i-1])*100
+  }
 }
 
-     
-#scale + mice
+imp <- mice(df[3:19], m=5, seed=6400, print = FALSE, defaultMethod = c("pmm") )
+##NEEDS FIXING
+df[3:19] <- as.data.frame(scale(complete(imp, 3)))
+df[c(3,4,5,6,8)] <- -df[c(3,4,5,6,8)] ##some variables are better off negative
 
-#medication addition
-     
-     
+my_function <- function(join, df1, df2) {
+  df1 %>% left_join(df2, by = join)
+}
 
 
+##medication is taked care of
+med <- read.csv("C://Users//kosai//Desktop//med_year_fixed.csv")
+df <- my_function(df,med, join=c("PATNO","year"))
+med$X <- NULL
