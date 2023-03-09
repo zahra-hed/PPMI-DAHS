@@ -1,5 +1,25 @@
 library("dplyr")
 library("stringr")
+
+temp <- 1;
+patlist <- read.csv("C:\\Users\\kosai\\OneDrive\\바탕 화면\\patients.csv")
+medication <- data.frame(PATNO = patlist$PATNO[1], DATE = patlist$FV[1])
+temp.DATE <- patlist$FV[temp]
+while (temp <= length(patlist$PATNO)){
+  medication <- distinct(rbind(medication, c(patlist$PATNO[temp], temp.DATE)))
+  if (temp.DATE %% 100 == 12){
+    temp.DATE <- temp.DATE + 89  
+  }
+  else{
+    temp.DATE <- temp.DATE + 1
+  }
+  if (temp.DATE >= 2212){
+    temp <- temp + 1
+    temp.DATE <- patlist$FV[temp]
+  } 
+}
+###############################################################################################################
+
 med <- read.csv(file="C://Users//kosai//Desktop//LEDD_Concomitant_Medication_Log (1).csv")
 str_detect("CARBIDOPA/LEVODOPA (25/100)", "LEV")
 med$c <- c(0)
@@ -10,15 +30,18 @@ for(i in 1:6856){
   else if((str_detect(med$LEDTRT[i], "PRAMIPEXOLE"))|(str_detect(med$LEDTRT[i], "Pramipexole"))|(str_detect(med$LEDTRT[i], "Ropin"))|(str_detect(med$LEDTRT[i], "ROPIN"))){
     med$c[i] <- 2
   }
+  else if (type 3){
+    med$c <- 3
+  }
   else{
-    med$c[i] <- 3
+    med$c[i] <- 4
   }
 }
 
 med[which(is.na(med$stop)), "stop"] <- 2399
 
 df <- read.csv(file="C://Users//kosai//Desktop//df1.csv")
- 
+
 for (i in 1:length(df$PATNO)){
   if(df$year[i] == 1){
     df$DATE2[i] <- df$DATE2[i] + 50
@@ -43,7 +66,7 @@ for (i in 1:3379){
   med.t <- med %>% filter(PATNO == df$PATNO[i])
   if(length(med.t$REC_ID != 0)){
     for (j in 1:length(med.t$PATNO)){
-      if ((med.t$s[j]<df$DATE2[i]) & (med.t$t[j]>df$DATE2[i])){
+      if ((med.t$s[j]=<df$DATE2[i]) & (med.t$t[j]>=df$DATE2[i])){
         if(med.t$c[j] == 1){
           df$med1[i] <- 1
         }
@@ -59,32 +82,11 @@ for (i in 1:3379){
 }
 df$med <- c(0)
 for (i in 1:3379){
-  if((df$med1[i] ==0)&(df$med2[i] ==0)&(df$med3[i] ==0)){
-    df$med[i] <- 0
-  }
-  else if((df$med1[i] ==1)&(df$med2[i] ==0)&(df$med3[i] ==0)){
-    df$med[i] <- 1
-  }
-  else if((df$med1[i] ==0)&(df$med2[i] ==1)&(df$med3[i] ==0)){
-    df$med[i] <- 2
-  }
-  else if((df$med1[i] ==0)&(df$med2[i] ==0)&(df$med3[i] ==1)){
-    df$med[i] <- 3
-  }
-  else if((df$med1[i] ==1)&(df$med2[i] ==1)&(df$med3[i] ==0)){
-    df$med[i] <- 4
-  }
-  else if((df$med1[i] ==0)&(df$med2[i] ==1)&(df$med3[i] ==1)){
-    df$med[i] <- 5
-  }
-  else if((df$med1[i] ==1)&(df$med2[i] ==0)&(df$med3[i] ==1)){
-    df$med[i] <- 6
-  }
-  else if((df$med1[i] ==1)&(df$med2[i] ==1)&(df$med3[i] ==1)){
-    df$med[i] <- 7
-  }
+  med$cluster[i] <- med[i] + med2[i] *2 + med3[i] *4 + med4[i]*8
 }
 write.csv(df,file="C://Users//kosai//Desktop//df-1.csv")
 
 hist(df$med, breaks=c(-1,0,1,2,3,4,5,6,7))
+
+yearly 단위로 컷하기!
 
