@@ -4,10 +4,8 @@ install.packages('tidyverse')
 library("dplyr")
 library('tidyverse')
 
-setwd("C://Users//kosai//Desktop//PPMI//features")
-(temp = list.files(pattern="*.csv"))
-myfiles = lapply(temp, read.delim)
 preprocessing <- function(inputdata){
+  if(inputdata$patage
   inputdata <- inputdata %>% group_by(PATNO) %>% arrange(DATE, .by_group=TRUE)
   ##RECID creation col : NO
   patno_temp = 1
@@ -75,6 +73,11 @@ preprocessing <- function(inputdata){
   inputdata <- inputdata %>% filter(DATE_I != 0)
   return(inputdata)
 }
+
+
+setwd("C://Users//kosai//Desktop//PPMI//features")
+(temp = list.files(pattern="*.csv"))
+myfiles = lapply(temp, read.delim)
 for (i in 1:length(temp)) assign(temp[i], preprocessing(read.csv(temp[i]))) ; temp <- NULL; myfiles <- NULL
 
 total_features <- list(data.frame(KEY = as.vector(BJLO.csv$KEY), BJLO = as.vector(BJLO.csv$JLO_TOTRAW)),
@@ -139,3 +142,14 @@ info <- list(
 )
 info.df <- info %>% reduce(full_join, by = "PATNO") ; info <- NULL
 df <- left_join(df,info.df)
+patients <- distinct(data.frame(PATNO = as.vector(df$PATNO), years = as.vector(df$N_MAX)))
+#hist(patients$years, main="Number of Patients /per year")
+
+df <- preprocessing(df %>% filter(N_MAX>=7) %>% filter(CONCOHORT == 1))
+
+#age, 
+ 
+mice 처리 + scaled
+
+
+
