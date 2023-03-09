@@ -1,8 +1,10 @@
 install.packages('dplyr')
 install.packages('tidyverse')
+install.packages('mice')
 
 library("dplyr")
 library('tidyverse')
+library('mice')
 
 preprocessing <- function(inputdata){
   if(inputdata$patage
@@ -147,9 +149,19 @@ patients <- distinct(data.frame(PATNO = as.vector(df$PATNO), years = as.vector(d
 
 df <- preprocessing(df %>% filter(N_MAX>=7) %>% filter(CONCOHORT == 1))
 
-#age, 
- 
-mice 처리 + scaled
+#age, diagnosis, enddate 케어하기
+for (i in 2:df$PATNO){
+   if(df$PATNO[i] == df$PATNO[i-1]){
+     df$age[i] <- df$age[i-1] + 1
+     df$diagnosis[i] <- df$diagnosis[i-1] + 1
+   }
+}
 
+     
+#scale + mice
+
+#medication addition
+     
+     
 
 
