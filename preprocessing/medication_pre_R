@@ -111,5 +111,74 @@ for (i in 1:length(med.year$PATNO)){
 write.csv(med.year, file="C://Users//kosai//Desktop//med_year_fixed.csv")
 
 hist(df$med, breaks=c(-1,0,1,2,3,4,5,6,7))
+medication$nm1 <- c(1)
+medication$nm2 <- c(1)
+medication$nm3 <- c(1)
+medication$nm4 <- c(1)
+temp1 <- 2; temp2 <- 2; temp3 <- 2; temp4 <- 2
+for (i in 2:length(medication$PATNO)){
+  if(medication$PATNO[i] != medication$PATNO[i-1]){
+    temp1 <-0; temp2 <- 0; temp3 <- 0; temp4 <- 0
+  }
+  if(medication$med1[i] != medication$med1[i-1]){
+    temp1 <- 0
+  }
+  if(medication$med2[i] != medication$med2[i-1]){
+    temp2 <- 0
+  }
+  if(medication$med3[i] != medication$med3[i-1]){
+    temp3 <- 0
+  }
+  if(medication$med4[i] != medication$med4[i-1]){
+    temp4 <- 0
+  }
+  temp1 <- temp1 + 1; temp2 <- temp2 +1; temp3 <- temp3 +1; temp4 <- temp4 +1
+  medication$nm1[i] <- temp1
+}
 
-yearly 단위로 컷하기!
+for(i in (length(medication$X)-1):1){
+  if(medication$PATNO[i] == medication$PATNO[i+1]){
+    if(medication$med1[i] == medication$med1[i+1]){
+      medication$nm1[i] = medication$nm1[i+1]
+    }
+    if(medication$med2[i] == medication$med2[i+1]){
+      medication$nm2[i] = medication$nm2[i+1]
+    }
+    if(medication$med3[i] == medication$med3[i+1]){
+      medication$nm3[i] = medication$nm3[i+1]
+    }
+    if(medication$med4[i] == medication$med4[i+1]){
+      medication$nm4[i] = medication$nm4[i+1]
+    }
+  }
+}
+
+
+med$stay <- c(1)
+temp <- 0
+for (i in 2:length(med$PATNO)){
+  if(med$PATNO[i] != med$PATNO[i-1]){
+    temp<-0
+  }
+  if(med$type[i] != med$type[i-1]){
+    temp <- 0
+  }
+  temp <- temp+1
+  med$stay[i] <- temp
+}
+
+for(i in (length(med$PATNO)-1):1){
+  if(med$PATNO[i] == med$PATNO[i+1]){
+    if(med$type[i] == med$type[i+1]){
+      med$stay[i] = med$stay[i+1]
+    }
+  }
+}
+for(i in 2:length(med$X)){
+  if ((med$stay[i] == med$stay[i-1]) & (med$type[i] == med$type[i-1])){
+    med$stay[i-1] <- NA 
+  }
+}
+med2 <- med$stay
+med2 <- med %>% filter(!is.na)
+
