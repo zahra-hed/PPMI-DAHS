@@ -79,9 +79,10 @@ for (i in 1:length(medication$PATNO)){
 }
 for (i in 1:length(medication$PATNO)){
   medication$type[i] <- medication$med1[i] + medication$med2[i] *2 + medication$med3[i] *4 + medication$med4[i]*8
-  medication$LEDD[i] <- medication$LEDD[i] * 1.33 ^ (medication$LEDDmult[i])
+  medication$LEDD[i] <- medication$LEDD[i] +  0.33 * medication$LEDD[i] * (medication$LEDDmult[i])
   
 }
+
 
 med.year <- medication
 med.year$year <- c(1)
@@ -105,9 +106,24 @@ med.year$type <- c(0)
 
 for (i in 1:length(med.year$PATNO)){
   med.year$type[i] <- med.year$med1[i] + med.year$med2[i] *2 + med.year$med3[i] *4 + med.year$med4[i]*8
-  
 }
 
+##duration CALCULATION
+med$dur <- c(0)
+for (i in 1:length(med$REC_ID)){
+  if((med$stop[i] %% 100) >= (med$start[i] %% 100)){
+    med$dur[i] <- med$stop[i] - med$start[i]
+  }
+  else{
+    med$dur[i] <- med$stop[i] - med$start[i] + 12 - 100
+  }
+}
+med$dur <- med$dur %% 100 + 12 * (med$dur %/% 100)
+med$dur <- med$dur %/% 12 + 1
+
+med.year$medc <-  med.year$medc<-med.year$med1+ med.year$med2+ med.year$med3 +  med.year$med4
+
+--------------------------------------------------------------------------------------------------------------------------- holding time / transition prob
 write.csv(med.year, file="C://Users//kosai//Desktop//med_year_fixed.csv")
 
 hist(df$med, breaks=c(-1,0,1,2,3,4,5,6,7))
