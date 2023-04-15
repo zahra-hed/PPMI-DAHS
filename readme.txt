@@ -8,25 +8,7 @@ Introduction
 Variables used
 
  Features
- Non-motor
- -Neuropsychological 신경심리
- Benton Judgment of Line orientation - 공간지각
- Hopkins verbal learning test - 인지능력
- Symbol Digit Modalities test - 
- Modified Semantic Fluency - 
- Montreal Cognitive Assessment - 
- -Neurobehavior 신경행동
- Geriatic depression scale - 기분/우울
- State-Trait Anxiety Inventory - 
- QUIP
- -Sleep disorder 수면
- Epworth Sleepiness Scale - 피곤함
- -Autonomic  자율 
- SCOPA-AUT - 
- RBD
- LNS
- UPSIT
- Motor
+
  MDS UPDRS1
  MDS UPDRS2
  MDS UPDRS3
