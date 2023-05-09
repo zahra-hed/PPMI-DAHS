@@ -74,14 +74,14 @@ main[which(main$N_MAX==main$NUM), c("cluster.n","LEDD.n","LEDD.n.bin","medtype.n
 main$LEDD.n.bin[which((main$LEDD.n.bin>0)&(main$LEDD.n.bin<1))] <- 1
 main$LEDD.n.bin[which((main$LEDD.n.bin<0)&(main$LEDD.n.bin>-1))] <- -1
 
-#LEDD discretization 0, 0~500, 500~1000, 1000~
+#LEDD discretization 0, 1000
 main[c("LEDD.d","LEDD.n.d")] <- c(0)
-main$LEDD.d <- ceiling(main$LEDD/500)
-main$LEDD.d[which(main$LEDD.d>3)] <- 3
+main$LEDD.d <- ceiling(main$LEDD/1000)
+main$LEDD.d[which(main$LEDD.d>2)] <- 2
 
-main$LEDD.n.d <- (main$LEDD.n.bin) * ceiling(abs(main$LEDD.n)/500)
-main$LEDD.n.d[which(main$LEDD.n.d > 3)] <- 3
-main$LEDD.n.d[which(main$LEDD.n.d < -3)] <- -3
+main$LEDD.n.d <- (main$LEDD.n.bin) * ceiling(abs(main$LEDD.n)/1000)
+main$LEDD.n.d[which(main$LEDD.n.d > 2)] <- 2
+main$LEDD.n.d[which(main$LEDD.n.d < -2)] <- -2
 
 #LEDD - medication count 
 med.s <- data.frame(matrix(0, nrow=4, ncol=4))
