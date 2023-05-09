@@ -74,18 +74,18 @@ main[which(main$N_MAX==main$NUM), c("cluster.n","LEDD.n","LEDD.n.bin","medtype.n
 main$LEDD.n.bin[which((main$LEDD.n.bin>0)&(main$LEDD.n.bin<1))] <- 1
 main$LEDD.n.bin[which((main$LEDD.n.bin<0)&(main$LEDD.n.bin>-1))] <- -1
 
-#LEDD discretization 0, 1000
+#LEDD discretization 0, 0~500, 500~
 main[c("LEDD.d","LEDD.n.d")] <- c(0)
-main$LEDD.d <- ceiling(main$LEDD/1000)
+main$LEDD.d <- ceiling(main$LEDD/500)
 main$LEDD.d[which(main$LEDD.d>2)] <- 2
 
-main$LEDD.n.d <- (main$LEDD.n.bin) * ceiling(abs(main$LEDD.n)/1000)
+main$LEDD.n.d <- (main$LEDD.n.bin) * ceiling(abs(main$LEDD.n)/500)
 main$LEDD.n.d[which(main$LEDD.n.d > 2)] <- 2
 main$LEDD.n.d[which(main$LEDD.n.d < -2)] <- -2
 
 #LEDD - medication count 
-med.s <- data.frame(matrix(0, nrow=4, ncol=4))
-for(i in 0:3){
+med.s <- data.frame(matrix(0, nrow=3, ncol=4))
+for(i in 0:2){
   for(j in 0:3){
     med.s[i+1,j+1] <-nrow(main %>% filter(LEDD.d == i) %>% filter(medcount == j))
   }
@@ -100,27 +100,18 @@ for(i in 1:nrow(main)){
   else if((main$medcount[i] == 1)&(main$LEDD.d[i] == 1)){
     main$medc[i] <- 2
   }
-  else if((main$medcount[i] == 1)&(main$LEDD.d[i] %in% c(2,3))){
+  else if((main$medcount[i] == 1)&(main$LEDD.d[i] == 2)){
     main$medc[i] <- 3
   }
-  else if((main$medcount[i] == 2)&(main$LEDD.d[i] == 1)){
-    main$medc[i] <- 4
-  }
-  else if((main$medcount[i] == 2)&(main$LEDD.d[i] == 2)){
+  else if((main$medcount[i] == 3)&(main$LEDD.d[i] %in% c(1,2))){
     main$medc[i] <- 5
   }
-  else if((main$medcount[i] == 2)&(main$LEDD.d[i] == 3)){
-    main$medc[i] <- 6
-  }
-  else if((main$medcount[i] == 3)&(main$LEDD.d[i] %in% c(1,2))){
-    main$medc[i] <- 7
-  }
-  else if((main$medcount[i] == 3)&(main$LEDD.d[i] == 3)){
-    main$medc[i] <- 8
+  else if((main$medcount[i] %in% c(1,2))&(main$LEDD.d[i] == 2)){
+    main$medc[i] <- 4
   }
 }
 
-main$state <- main$medc + (main$cluster-1) * 8
+main$state <- main$medc + (main$cluster-1) * 5
 
 med.s2 <- main %>% group_by(state) %>% summarize(M1= mean(M1), M2=mean(M2), M3=mean(M3), M4=mean(M4))
 
@@ -133,15 +124,15 @@ main[which(main$N_MAX==main$NUM), c("state.n")] <- NA
 #action table
 
 #LEDD - medication count  movement check
-med.t <- data.frame(matrix(0, nrow=7, ncol=7))
-for(i in -3:3){
+med.t <- data.frame(matrix(0, nrow=5, ncol=7))
+for(i in -2:2){
   for(j in -3:3){
-    med.t[i+4,j+4] <-nrow(main %>% filter(LEDD.n.d == i) %>% filter(medcount.n == j))
+    med.t[i+3,j+4] <-nrow(main %>% filter(LEDD.n.d == i) %>% filter(medcount.n == j))
   }
 }
 rownames(med.t) <- c(-3,-2,-1,0,1,2,3); colnames(med.t) <- c(-1,0,1)
 if(F)'
-What da fuq is this????
+What is this????
 action.t <- data.frame(matrix(nrow=8, ncol=3))
 
 for(i in 1:8){
@@ -183,23 +174,21 @@ states <- states %>% group_by(state) %>% summarize(M1=mean(M1), M2=mean(M2),M3=m
 #creating state-action-state table
 actions <- list()
 for (i in 1:5) {
-  df <- data.frame(matrix(0, nrow = 24, ncol = 24))
+  df <- data.frame(matrix(0, nrow = 15, ncol = 15))
   actions[[i]] <- df
 }
 
 for (i in 1:5){
   temp <- main %>% filter(action == i) %>% filter(NUM != N_MAX)
-  for (j in 1:24){
-    for (k in 1:24){
+  for (j in 1:15){
+    for (k in 1:15)
       actions[[i]][j,k] <- nrow(temp %>% filter(state==j) %>% filter(state.n==k))/max(nrow(temp %>% filter(state==j)),1)
     }
-  }
 }
 
 
 
 #function, input : action, state i, output : possible states
-
 transPr <- function(a, i){
   temp <- actions[[a]][i]
   which(temp != 0)
@@ -207,7 +196,7 @@ transPr <- function(a, i){
   return(list(pr=temp[temp!=0],id = which(temp!=0)))
 }
 
-D <- matrix(0, nrow = 24, ncol = 24)
+D <- matrix(0, nrow = 15, ncol = 15)
 P <- list()
 for (i in 1:5){
   P[[i]] <- as.matrix(actions[[i]])  
@@ -233,7 +222,7 @@ w$process()
 w$endProcess()
 w$closeWriter()
 '
-#REWARD
+#REWARD NEEDS FIXING REWARD FUNCTION
 a=0.01; b=0.01
 AvgReward <- function(a, i, rew){
   r <- 0
@@ -246,16 +235,16 @@ AvgReward <- function(a, i, rew){
   return(r)
 }
 hypers <- function(a,b){
-  reward <- data.frame(matrix(0,nrow=24,ncol=24))
-  for(i in 1:24){
-    for(j in 1:24){
+  reward <- data.frame(matrix(0,nrow=15,ncol=15))
+  for(i in 1:15){
+    for(j in 1:15){
       reward[i,j] = sqrt(states$M1[i]^2 + states$M2[i]^2 + states$M3[i]^2 + states$M4[j]^2) - sqrt(states$M1[j]^2 + states$M2[j]^2 + states$M3[j]^2 + states$M4[j]^2) +
         a*(states$medcount[i] - states$medcount[j]) + b*(states$LEDD.d[i] - states$LEDD.d[j])
     }
   }
   reward <- reward * 100
-  R <- matrix(0, ncol = 5, nrow = 24)
-  for(i in 1:24){
+  R <- matrix(0, ncol = 5, nrow = 15)
+  for(i in 1:15){
     for(j in 1:5){
       R[i,j] <- AvgReward(j,i, reward)
     }
@@ -265,7 +254,7 @@ hypers <- function(a,b){
 x <- hypers(0.01,0.01)
 
 #MDP solving
-res <- data.frame(matrix(0,nrow = 24,ncol = 0))
+res <- data.frame(matrix(0,nrow = 15,ncol = 0))
 RS <- list()
 aa <- 1
 
