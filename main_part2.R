@@ -1,3 +1,7 @@
+
+load('myEnvironment.RData')
+
+
 #
 #  Part 2 of PPMI project
 #  :Defining & Solving the Model
@@ -74,12 +78,12 @@ main[which(main$N_MAX==main$NUM), c("cluster.n","LEDD.n","LEDD.n.bin","medtype.n
 main$LEDD.n.bin[which((main$LEDD.n.bin>0)&(main$LEDD.n.bin<1))] <- 1
 main$LEDD.n.bin[which((main$LEDD.n.bin<0)&(main$LEDD.n.bin>-1))] <- -1
 
-#LEDD discretization 0, 0~500, 500~
+#LEDD discretization 0, 0~600, 600~
 main[c("LEDD.d","LEDD.n.d")] <- c(0)
-main$LEDD.d <- ceiling(main$LEDD/500)
+main$LEDD.d <- ceiling(main$LEDD/600)
 main$LEDD.d[which(main$LEDD.d>2)] <- 2
 
-main$LEDD.n.d <- (main$LEDD.n.bin) * ceiling(abs(main$LEDD.n)/500)
+main$LEDD.n.d <- (main$LEDD.n.bin) * ceiling(abs(main$LEDD.n)/600)
 main$LEDD.n.d[which(main$LEDD.n.d > 2)] <- 2
 main$LEDD.n.d[which(main$LEDD.n.d < -2)] <- -2
 
@@ -100,7 +104,7 @@ for(i in 1:nrow(main)){
   else if((main$medcount[i] == 1)&(main$LEDD.d[i] == 1)){
     main$medc[i] <- 2
   }
-  else if((main$medcount[i] == 1)&(main$LEDD.d[i] == 2)){
+  else if((main$medcount[i] == 2)&(main$LEDD.d[i] == 1)){
     main$medc[i] <- 3
   }
   else if((main$medcount[i] == 3)&(main$LEDD.d[i] %in% c(1,2))){
@@ -123,14 +127,14 @@ for(i in 1:(nrow(main)-1)){
 main[which(main$N_MAX==main$NUM), c("state.n")] <- NA 
 #action table
 
-#LEDD - medication count  movement check
+#LEDD - medication count movement check
 med.t <- data.frame(matrix(0, nrow=5, ncol=7))
 for(i in -2:2){
   for(j in -3:3){
     med.t[i+3,j+4] <-nrow(main %>% filter(LEDD.n.d == i) %>% filter(medcount.n == j))
   }
 }
-rownames(med.t) <- c(-3,-2,-1,0,1,2,3); colnames(med.t) <- c(-1,0,1)
+rownames(med.t) <- c(-2,-1,0,1,2); colnames(med.t) <- c(-3,-2,-1,0,1,2,3)
 if(F)'
 What is this????
 action.t <- data.frame(matrix(nrow=8, ncol=3))
@@ -183,7 +187,7 @@ for (i in 1:5){
   for (j in 1:15){
     for (k in 1:15)
       actions[[i]][j,k] <- nrow(temp %>% filter(state==j) %>% filter(state.n==k))/max(nrow(temp %>% filter(state==j)),1)
-    }
+  }
 }
 
 
@@ -251,6 +255,15 @@ hypers <- function(a,b){
   }
   return(R)
 }
+RewardCal <- function(a,b){
+  R <- data.frame(matrix(nrow = 15, ncol = 5))
+  for(i in 1:15){
+    for(j in 1:5){
+      R[i,j] <- sqrt(states[i,1] ^ 2 + states[i,2] ^ 2 + states[i,3] ^ 2 + states[i,4] ^ 2) - a * - b *
+    }
+  }
+}
+
 x <- hypers(0.01,0.01)
 
 #MDP solving
@@ -280,6 +293,3 @@ write.csv(res,file="policy.csv")
 for (i in 1:9){
   write.csv(RS[[i]], file=paste(i,".csv"))
 }
-
-
-load('myEnvironment.RData')
