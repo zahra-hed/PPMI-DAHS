@@ -1,4 +1,4 @@
-# A Markov Decision Process modeling approach to Parkinson Disease 
+#A Markov Decision Process modeling approach to Parkinson Disease 
 
 ## Introduction
  Parkinson is a chronic disease, meaning patients usually suffer from it for a very long time.  Normally a perfect cure does not exsist and patients focus on maintaining the current state, making sure it does not get worse.  In this effort both medication and regualar life pattern plays a major role.  Markov models show advantage in explaining long-term series of events, and since medication plays a major role this model is expanded into a Markov Decision Model.
