@@ -43,3 +43,7 @@ Features
 * state holding time + state transition probability tested 
 * MDP based explanation
 
+## Methods Used
+* PCA
+* K-mean clustering
+* Markov Decision Process
