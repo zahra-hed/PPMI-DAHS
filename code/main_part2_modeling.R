@@ -293,3 +293,58 @@ write.csv(res,file="policy.csv")
 for (i in 1:9){
   write.csv(RS[[i]], file=paste(i,".csv"))
 }
+
+
+
+##absorbing state definition
+#checking for absorbing states
+
+patno <- unique(main$PATNO)
+main.list <- list()
+for (i in 1:length(patno)){
+  main.list[[i]] <- main %>% filter(PATNO == patno[i])
+}
+
+crit <- function(condition, value){
+  return(value %in% condition)
+}
+count_consecutive_trues <- function(x) {
+  count <- 0
+  memory <- c(0)
+  idx <- c(0)
+  for (i in seq_along(x)) {
+    if (x[i]) {
+      count <- count + 1
+    } else {
+      memory <- append(memory, count)
+      idx <- append(idx, i-1)
+      count <- 0
+    }
+  }
+  memory <- append(memory, count)
+  idx <- append(idx, i)
+  result <- data.frame(memory= memory, idx = idx)
+  result <- result %>% filter(memory == max(memory))
+  return(c(result[1,]))
+}
+
+c <- c(3); count <- 5; lim <- c(1)
+ress <- data.frame(matrix(ncol=2, nrow = 9))
+for(count in c(1:9)){
+TT <- 0; TF <- 0
+for(i in 1:length(patno)){
+  temp <- main.list[[i]]
+  prob.t <- sapply(temp$cluster, function(x) crit(c, x))
+  if(count_consecutive_trues(prob.t)$memory > count){
+    TT <- TT + 1
+    if(any(temp$state[count_consecutive_trues(prob.t)$idx:length(temp$cluster)] %in% lim)){
+      TF <- TF + 1
+    }
+  }
+}
+ress[count,] <- c(TT, TF)
+}
+
+
+TT
+TF
