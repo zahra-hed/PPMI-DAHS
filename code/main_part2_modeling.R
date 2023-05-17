@@ -1,7 +1,3 @@
-
-load('myEnvironment.RData')
-
-
 #
 #  Part 2 of PPMI project
 #  :Defining & Solving the Model
@@ -78,12 +74,15 @@ main[which(main$N_MAX==main$NUM), c("cluster.n","LEDD.n","LEDD.n.bin","medtype.n
 main$LEDD.n.bin[which((main$LEDD.n.bin>0)&(main$LEDD.n.bin<1))] <- 1
 main$LEDD.n.bin[which((main$LEDD.n.bin<0)&(main$LEDD.n.bin>-1))] <- -1
 
-#LEDD discretization 0, 0~600, 600~
+#LEDD discretization Q3 = 700, 1100, 1490
 main[c("LEDD.d","LEDD.n.d")] <- c(0)
-main$LEDD.d <- ceiling(main$LEDD/600)
+main$LEDD.d[which(main$medcount == 1)] <- ceiling(main$LEDD[which(main$medcount == 1)]/600)
+main$LEDD.d[which(main$medcount == 2)] <- ceiling(main$LEDD[which(main$medcount == 2)]/1100)
+main$LEDD.d[which(main$medcount == 3)] <- ceiling(main$LEDD[which(main$medcount == 3)]/1490)
 main$LEDD.d[which(main$LEDD.d>2)] <- 2
 
-main$LEDD.n.d <- (main$LEDD.n.bin) * ceiling(abs(main$LEDD.n)/600)
+#needs fixing - but does not really matter
+main$LEDD.n.d <- (main$LEDD.n.bin) * ceiling(abs(main$LEDD.n)/500)
 main$LEDD.n.d[which(main$LEDD.n.d > 2)] <- 2
 main$LEDD.n.d[which(main$LEDD.n.d < -2)] <- -2
 
@@ -94,206 +93,6 @@ for(i in 0:2){
     med.s[i+1,j+1] <-nrow(main %>% filter(LEDD.d == i) %>% filter(medcount == j))
   }
 }
-
-#States
-main$medc <- c(0)
-for(i in 1:nrow(main)){
-  if(main$medcount[i] == 0){
-    main$medc[i] <- 1
-  }
-  else if((main$medcount[i] == 1)&(main$LEDD.d[i] == 1)){
-    main$medc[i] <- 2
-  }
-  else if((main$medcount[i] == 2)&(main$LEDD.d[i] == 1)){
-    main$medc[i] <- 3
-  }
-  else if((main$medcount[i] == 3)&(main$LEDD.d[i] %in% c(1,2))){
-    main$medc[i] <- 5
-  }
-  else if((main$medcount[i] %in% c(1,2))&(main$LEDD.d[i] == 2)){
-    main$medc[i] <- 4
-  }
-}
-
-main$state <- main$medc + (main$cluster-1) * 5
-
-med.s2 <- main %>% group_by(state) %>% summarize(M1= mean(M1), M2=mean(M2), M3=mean(M3), M4=mean(M4))
-
-
-main$state.n <- c(0)
-for(i in 1:(nrow(main)-1)){
-  main$state.n[i] <- main$state[i+1]
-}; rm(i)
-main[which(main$N_MAX==main$NUM), c("state.n")] <- NA 
-#action table
-
-#LEDD - medication count movement check
-med.t <- data.frame(matrix(0, nrow=5, ncol=7))
-for(i in -2:2){
-  for(j in -3:3){
-    med.t[i+3,j+4] <-nrow(main %>% filter(LEDD.n.d == i) %>% filter(medcount.n == j))
-  }
-}
-rownames(med.t) <- c(-2,-1,0,1,2); colnames(med.t) <- c(-3,-2,-1,0,1,2,3)
-if(F)'
-What is this????
-action.t <- data.frame(matrix(nrow=8, ncol=3))
-
-for(i in 1:8){
-  for(j in 1:3){
-    action.t[i,j] <- nrow(main %>% filter(medtype.n == i) %>% filter(LEDD.n.bin==j))
-  }
-}
-
-write.csv(main, file="main.csv")
-'
-main$action <- NA
-for(i in which(!is.na(main$medcount.n))){
-  if((main$medcount.n[i] < 0)&(main$LEDD.n.d[i] < 0)){
-    main$action[i] <- 1
-  }
-  else if((main$medcount.n[i] >= 0)&(main$LEDD.n.d[i] < 0)){
-    main$action[i] <- 2
-  }
-  else if(main$LEDD.n.d[i] == 0){
-    main$action[i] <- 3
-  }
-  else if((main$medcount.n[i] <= 0)&(main$LEDD.n.d[i] > 0)){
-    main$action[i] <- 4
-  }
-  else if((main$medcount.n[i] > 0)&(main$LEDD.n.d[i] > 0)){
-    main$action[i] <- 5
-  }
-}
-states <- main[c("state", "M1","M2","M3","M4","medcount","LEDD.d")]
-states$M1 <- states$M1/max(states$M1)
-states$M2 <- states$M2/max(states$M2)
-states$M3 <- states$M3/max(states$M3)
-states$M4 <- states$M4/max(states$M4)
-
-states <- states %>% group_by(state) %>% summarize(M1=mean(M1), M2=mean(M2),M3=mean(M3), M4=mean(M4), medcount=mean(medcount), LEDD.d = mean(LEDD.d))
-
-
-
-#creating state-action-state table
-actions <- list()
-for (i in 1:5) {
-  df <- data.frame(matrix(0, nrow = 15, ncol = 15))
-  actions[[i]] <- df
-}
-
-for (i in 1:5){
-  temp <- main %>% filter(action == i) %>% filter(NUM != N_MAX)
-  for (j in 1:15){
-    for (k in 1:15)
-      actions[[i]][j,k] <- nrow(temp %>% filter(state==j) %>% filter(state.n==k))/max(nrow(temp %>% filter(state==j)),1)
-  }
-}
-
-
-
-#function, input : action, state i, output : possible states
-transPr <- function(a, i){
-  temp <- actions[[a]][i]
-  which(temp != 0)
-  temp[temp != 0]
-  return(list(pr=temp[temp!=0],id = which(temp!=0)))
-}
-
-D <- matrix(0, nrow = 15, ncol = 15)
-P <- list()
-for (i in 1:5){
-  P[[i]] <- as.matrix(actions[[i]])  
-}
-save.image(file='myEnvironment.RData')
-
-if(F)'
-w <- binaryMDPWriter("PPMI")
-w$setWeights(c("Duration", "Net reward"))
-w$process()
-  w$stage()
-    for(ii in 1:24){
-      w$state(label = ii)
-        for(jj in 1:5){
-          if(sum(actions[[jj]][ii]) != 0){
-            dat <- transPr(jj, ii)
-            w$action(label = jj, weights = c(), pr = dat$pr, id = dat$id, end =T)
-          }
-        }
-      w$endState()
-    }
-  w$endStage()
-w$endProcess()
-w$closeWriter()
-'
-#REWARD NEEDS FIXING REWARD FUNCTION
-a=0.01; b=0.01
-AvgReward <- function(a, i, rew){
-  r <- 0
-  temp <- transPr(a,i)
-  if (length(temp$pr) != 0){
-    for(ii in 1:length(temp$pr)){
-      r <- r + temp$pr[ii] * rew[i,temp$id[ii]]
-    }
-  }
-  return(r)
-}
-hypers <- function(a,b){
-  reward <- data.frame(matrix(0,nrow=15,ncol=15))
-  for(i in 1:15){
-    for(j in 1:15){
-      reward[i,j] = sqrt(states$M1[i]^2 + states$M2[i]^2 + states$M3[i]^2 + states$M4[j]^2) - sqrt(states$M1[j]^2 + states$M2[j]^2 + states$M3[j]^2 + states$M4[j]^2) +
-        a*(states$medcount[i] - states$medcount[j]) + b*(states$LEDD.d[i] - states$LEDD.d[j])
-    }
-  }
-  reward <- reward * 100
-  R <- matrix(0, ncol = 5, nrow = 15)
-  for(i in 1:15){
-    for(j in 1:5){
-      R[i,j] <- AvgReward(j,i, reward)
-    }
-  }
-  return(R)
-}
-RewardCal <- function(a,b){
-  R <- data.frame(matrix(nrow = 15, ncol = 5))
-  for(i in 1:15){
-    for(j in 1:5){
-      R[i,j] <- sqrt(states[i,1] ^ 2 + states[i,2] ^ 2 + states[i,3] ^ 2 + states[i,4] ^ 2) - a * - b *
-    }
-  }
-}
-
-x <- hypers(0.01,0.01)
-
-#MDP solving
-res <- data.frame(matrix(0,nrow = 15,ncol = 0))
-RS <- list()
-aa <- 1
-
-
-#changing over hyperparameters
-for (h in c(0.01, 0.1, 0.5)){
-  for (hh in c(0.01, 0.1, 0.5)){
-    w <- binaryMDPWriter("PPMI")
-    w$setWeights(c("Duration", "Net reward"))
-    R <- hypers(h, hh)
-    RS[[aa]] <- R
-    w$process(P,R,D)
-    w$closeWriter()
-    MDP <- loadMDP("PPMI")
-    runPolicyIteDiscount(MDP, "Net reward", "Duration", discountFactor = 0.1, maxIte = 100)
-    x <- getPolicy(MDP)
-    res[paste(h,",",hh)] = x$actionLabel
-    aa <- aa+1
-  }
-}
-
-write.csv(res,file="policy.csv")
-for (i in 1:9){
-  write.csv(RS[[i]], file=paste(i,".csv"))
-}
-
 
 
 ##absorbing state definition
@@ -327,24 +126,325 @@ count_consecutive_trues <- function(x) {
   result <- result %>% filter(memory == max(memory))
   return(c(result[1,]))
 }
+conseq.table <- function(c, lim1, lim2){
+  ress <- data.frame(matrix(ncol=4, nrow = 1))
+  for(count in c(0:20)){
+    TT <- 0; TF <- 0; TF2 <- 0; TF3 <- 0
+    for(i in 1:length(patno)){
+      temp <- main.list[[i]]
+      prob.t <- sapply(temp$cluster, function(x) crit(c, x))
+      if(count_consecutive_trues(prob.t)$memory > count){
+        TT <- TT + 1
+        temp2 <- temp$cluster[count_consecutive_trues(prob.t)$idx:nrow(temp)]
+        if(sum(crit(lim,temp2)) > 0){
+          TF <- TF + 1
+        }
+        if(sum(crit(lim2,temp2)) > 0){
+          TF2 <- TF2 + 1
+        }
+        if(sum(crit(lim2,temp2)) > 1){
+          TF3 <- TF3 + 1
+        }
+      }
+    }
+    ress[count+1,] <- c(TT, paste0(TF,"(",round(100*TF/TT,1),"%)"), paste0(TF2,"(",round(100*TF2/TT,1),"%)"), paste0(TF3,"(",round(100*TF3/TT,1),"%)"))
+  }
+  return(ress)
+}
 
-c <- c(3); count <- 5; lim <- c(1)
-ress <- data.frame(matrix(ncol=2, nrow = 9))
-for(count in c(1:9)){
-TT <- 0; TF <- 0
-for(i in 1:length(patno)){
-  temp <- main.list[[i]]
-  prob.t <- sapply(temp$cluster, function(x) crit(c, x))
-  if(count_consecutive_trues(prob.t)$memory > count){
-    TT <- TT + 1
-    if(any(temp$state[count_consecutive_trues(prob.t)$idx:length(temp$cluster)] %in% lim)){
-      TF <- TF + 1
+good2bad <- conseq.table(c(3),c(1,2),c(1))
+bad2good <- conseq.table(c(1),c(3,2),c(3))
+
+write.csv(good2bad, file="g2b.csv")
+write.csv(bad2good, file="b2g.csv")
+
+if(F)'
+plot(good2bad$X3, type ="b", col = "blue")
+lines(bad2good$X3, type ="b", col = "red")
+abline(v = 7, lty = 2)
+abline(v = 16, lty = 2)
+'
+
+
+
+#States
+main$medc <- main$medcount * 2 + main$LEDD.d - 1
+main$medc[which(main$medcount == 0)] <- c(1)
+main$state <- main$medc + (3-main$cluster) * 7
+
+
+#add absorbing states after 16+good state => good absorbing /// after 7+ bad state|Death => bad absorbing
+main.list <- list()
+for (i in 1:length(patno)){
+  main.list[[i]] <- main %>% filter(PATNO == patno[i])
+}
+
+#adding absorbing states
+for (i in 1:length(patno)){
+  for (j in 1:nrow(main.list[[i]])){
+    g.list <- sapply(main.list[[i]]$cluster, function(x) crit(3, x))
+    b.list <- sapply(main.list[[i]]$cluster, function(x) crit(1, x))
+    if(count_consecutive_trues(g.list)$memory > 15){
+      main.list[[i]]$state[count_consecutive_trues(g.list)$idx:nrow(main.list[[i]])] <- c(0)
+    }
+    if(count_consecutive_trues(b.list)$memory > 6){
+      main.list[[i]]$state[count_consecutive_trues(b.list)$idx:nrow(main.list[[i]])] <- c(22)
     }
   }
 }
-ress[count,] <- c(TT, TF)
+
+#adding death
+for(i in 1:length(patno)){
+  if(sum(main.list[[i]]$death) > 0){
+    main.list[[i]]$state[nrow(main.list[[i]])] <- 22
+  }
+}
+
+main <- main.list[[1]]
+for(i in 2:length(patno)){
+  main <- rbind(main, main.list[[i]])
 }
 
 
-TT
-TF
+
+#check the properties of states
+med.s2 <- main %>% group_by(state) %>% summarize(M1= mean(M1), M2=mean(M2), M3=mean(M3), M4=mean(M4))
+med.s2$freq <- c(0)
+for(i in 1:23){
+  med.s2$freq[i] <- paste0(nrow(main %>% filter(state == i-1)),"(",round(nrow(main %>% filter(state == i-1))*100/8112,2),"%)")
+}
+
+#next states
+main$state.n <- c(0)
+for(i in 1:(nrow(main)-1)){
+  main$state.n[i] <- main$state[i+1]
+}; rm(i)
+main[which(main$N_MAX==main$NUM), c("state.n")] <- NA 
+
+
+
+#action table
+
+#LEDD - medication count  movement check
+med.t <- data.frame(matrix(0, nrow=5, ncol=7))
+for(i in -2:2){
+  for(j in -3:3){
+    med.t[i+3,j+4] <-nrow(main %>% filter(LEDD.n.d == i) %>% filter(medcount.n == j))
+  }
+}
+colnames(med.t) <- c(-3,-2,-1,0,1,2,3); rownames(med.t) <- c(-2,-1,0,1,2)
+if(F)'
+What is this????
+action.t <- data.frame(matrix(nrow=8, ncol=3))
+
+for(i in 1:8){
+  for(j in 1:3){
+    action.t[i,j] <- nrow(main %>% filter(medtype.n == i) %>% filter(LEDD.n.bin==j))
+  }
+}
+
+write.csv(main, file="main.csv")
+'
+main$action <- NA
+for(i in which(!is.na(main$medcount.n))){
+  if((main$medcount.n[i] < 0)&(main$LEDD.n.d[i] < 0)){
+    main$action[i] <- 1
+  }
+  else if((main$medcount.n[i] >= 0)&(main$LEDD.n.d[i] < 0)){
+    main$action[i] <- 2
+  }
+  else if(main$LEDD.n.d[i] == 0){
+    main$action[i] <- 3
+  }
+  else if((main$medcount.n[i] <= 0)&(main$LEDD.n.d[i] > 0)){
+    main$action[i] <- 4
+  }
+  else if((main$medcount.n[i] > 0)&(main$LEDD.n.d[i] > 0)){
+    main$action[i] <- 5
+  }
+}
+states <- main[c("state", "M1","M2","M3","M4","medc","LEDD.d")]
+states$M1 <- states$M1/max(states$M1)
+states$M2 <- states$M2/max(states$M2)
+states$M3 <- states$M3/max(states$M3)
+states$M4 <- states$M4/max(states$M4)
+
+states <- states %>% group_by(state) %>% summarize(M1=mean(M1), M2=mean(M2),M3=mean(M3), M4=mean(M4), medcount=mean(medc), LEDD.d = mean(LEDD.d))
+
+
+
+#creating state-action-state table
+actions <- list()
+for (i in 1:5) {
+  df <- data.frame(matrix(0, nrow = 23, ncol = 23))
+  actions[[i]] <- df
+}
+
+for (i in 1:5){
+  temp <- main %>% filter(action == i) %>% filter(NUM != N_MAX)
+  for (j in 1:23){
+    for (k in 1:23){
+      actions[[i]][j,k] <- nrow(temp %>% filter(state==j-1) %>% filter(state.n==k-1))/max(nrow(temp %>% filter(state==j-1)),1)
+    }
+  }
+}
+
+
+
+#function, input : action, state i, output : possible states
+transPr <- function(a, i){
+  temp <- actions[[a]][i,]
+  return(list(pr=temp[temp!=0],id = which(temp!=0)))
+}
+
+D <- matrix(0, nrow = 23, ncol = 23)
+P <- list()
+for (i in 1:5){
+  P[[i]] <- as.matrix(actions[[i]])  
+}
+
+if(F)'
+w <- binaryMDPWriter("PPMI")
+w$setWeights(c("Duration", "Net reward"))
+w$process()
+  w$stage()
+    for(ii in 1:24){
+      w$state(label = ii)
+        for(jj in 1:5){
+          if(sum(actions[[jj]][ii]) != 0){
+            dat <- transPr(jj, ii)
+            w$action(label = jj, weights = c(), pr = dat$pr, id = dat$id, end =T)
+          }
+        }
+      w$endState()
+    }
+  w$endStage()
+w$endProcess()
+w$closeWriter()
+'
+#REWARD NEEDS FIXING REWARD FUNCTION
+a=0.05; b=0.05
+
+AvgReward <- function(a, i, rew){
+  r <- 0
+  temp <- transPr(a,i)
+  if (length(temp$pr) != 0){
+    for(ii in 1:length(temp$pr)){
+      r <- r + temp$pr[ii] * rew[i,temp$id[ii]]
+    }
+  }
+  return(r)
+}
+hypers <- function(a,b){
+  reward <- data.frame(matrix(0,nrow=23,ncol=23))
+  for(i in 1:23){
+    for(j in 1:23){
+      reward[i,j] = sqrt(states$M1[i]^2 + states$M2[i]^2 + states$M3[i]^2 + states$M4[j]^2) - sqrt(states$M1[j]^2 + states$M2[j]^2 + states$M3[j]^2 + states$M4[j]^2) +
+        a*(states$medcount[i] - states$medcount[j]) + b*(states$LEDD.d[i] - states$LEDD.d[j])
+    }
+  }
+  reward <- reward * 100
+  reward[1,] <- 80
+  reward[,1] <- 80
+  reward[,22] <- -70
+  reward[22,] <- -70
+  
+  
+  R <- matrix(0, ncol = 5, nrow = 23)
+  for(i in 2:22){
+    for(j in 1:5){
+      R[i,j] <- AvgReward(j,i, reward)
+    }
+  }
+  return(R)
+}
+
+x <- hypers(0.01,0.01)
+
+
+
+
+#MDP solving
+res <- data.frame(matrix(0,nrow = 23,ncol = 0))
+RS <- list()
+aa <- 1
+
+
+#changing over hyperparameters
+for (h in c(0, 0.03, 0.05)){
+  for (hh in c(0, 0.03, 0.05)){
+    w <- binaryMDPWriter("PPMI")
+    w$setWeights(c("Duration", "Net reward"))
+    R <- hypers(h, hh)
+    RS[[aa]] <- R
+    w$process(P,R,D)
+    w$closeWriter()
+    MDP <- loadMDP("PPMI")
+    runPolicyIteDiscount(MDP, "Net reward", "Duration", discountFactor = 0.9, maxIte = 1000)
+    x <- getPolicy(MDP)
+    res[paste0(h,",",hh)] = x$actionLabel
+    aa <- aa+1
+  }
+}
+
+write.csv(res,file="policy.csv")
+for (i in 1:9){
+  write.csv(RS[[i]], file=paste(i,".csv"))
+}
+
+res <- mutate_all(res, function(x) as.numeric(x))
+
+pheatmap(as.numeric(res), cluster_rows = F, cluster_cols=F)
+save.image(file='myEnvironment.RData')
+load('myEnvironment.RData')
+
+
+
+
+
+#MDP SOLVING PART 2
+install.packages("MDPtoolbox")
+library(MDPtoolbox)
+
+MDPsolv <- function(a,b,r){
+  reward <- data.frame(matrix(0,nrow=23,ncol=23))
+  for(i in 1:23){
+    for(j in 1:23){
+      reward[i,j] = sqrt(states$M1[i]^2 + states$M2[i]^2 + states$M3[i]^2 + states$M4[j]^2) - sqrt(states$M1[j]^2 + states$M2[j]^2 + states$M3[j]^2 + states$M4[j]^2) +
+        a*(states$medcount[i] - states$medcount[j]) + b*(states$LEDD.d[i] - states$LEDD.d[j])
+    }
+  }
+  reward <- reward * 100
+  reward[1,] <- 80
+  reward[,1] <- 80
+  reward[,22] <- -70
+  reward[22,] <- -70
+  
+  #Probability
+  P <- array(0, c(23,23,5))
+  for(i in 1:5){
+    P[,,i] <- as.array(as.matrix(actions[[i]]))
+  }
+  R <- array(0, c(23,23,5)) #Reward
+  for(i in 1:5){
+    temp <- reward
+    for(k in 1:23){
+      for(j in 1:23){
+        if(actions[[i]][k,j] == 0){
+          temp[k,j] <- 0
+        }
+      }
+    }
+    R[,,i] <- as.array(as.matrix(temp))
+  }
+  return(mdp_policy_iteration(P,R,r)$policy)
+}
+MDPsolv(0.01, 0.01, 0.9)
+result <- data.frame(matrix(0, ncol=23, nrow=1))
+
+result[1,] <- MDPsolv(0.01, 0.01, 0.9)
+result[2,] <- MDPsolv(0.03, 0.03, 0.9)
+result[3,] <- MDPsolv(0.05, 0.05, 0.9)
+result[4,] <- MDPsolv(0.1, 0.1, 0.9)
+result[5,] <- MDPsolv(0.03, 0.03, 0.99)
+
