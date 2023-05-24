@@ -312,7 +312,7 @@ for (i in 1:9){
   temp <- main %>% filter(action == i) %>% filter(NUM != N_MAX)
   for (j in 1:22){
     for (k in 1:22){
-      actions[[i]][j,k] <- nrow(temp %>% filter(state==j) %>% filter(state.n==k))/max(nrow(temp %>% filter(state==j)),1)
+      actions[[i]][j,k] <- nrow(temp %>% filter(state==j) %>% filter(state.n==k) %>% filter(action == i))/max(nrow(temp %>% filter(state==j) %>% filter(action == i)),1)
     }
   }
 }
@@ -479,5 +479,20 @@ result[7,] <- MDPsolv(0.01, 0.1, 0.9,100)
 pheatmap(result[,2:22], cluster_rows = F, cluster_cols = F)
 
 
+##빈도수 개산
+freqs <- list()
+for (i in 1:9) {
+  df <- data.frame(matrix(0, nrow = 22, ncol = 22))
+  freqs[[i]] <- df
+}
 
+for (i in 1:9){
+  temp <- main %>% filter(action == i) %>% filter(NUM != N_MAX)
+  for (j in 1:22){
+    for (k in 1:22){
+      freqs[[i]][j,k] <- nrow(temp %>% filter(state==j) %>% filter(state.n==k) %>% filter(action == i))
+    }
+  }
+}
+pheatmap(actions[[8]], cluster_rows = F, cluster_cols = F)
 
