@@ -152,15 +152,12 @@ conseq.table <- function(c, lim1, lim2){
   return(ress)
 }
 
-good2bad <- conseq.table(c(3),c(1,2),c(1))
-bad2good <- conseq.table(c(1),c(3,2),c(3))
 
-write.csv(good2bad, file="g2b.csv")
+bad2good <- conseq.table(c(1),c(3,2),c(3))
 write.csv(bad2good, file="b2g.csv")
 
 if(F)'
-plot(good2bad$X3, type ="b", col = "blue")
-lines(bad2good$X3, type ="b", col = "red")
+plot(bad2good$X3, type ="b", col = "red")
 abline(v = 7, lty = 2)
 abline(v = 16, lty = 2)
 '
@@ -182,11 +179,7 @@ for (i in 1:length(patno)){
 #adding absorbing states
 for (i in 1:length(patno)){
   for (j in 1:nrow(main.list[[i]])){
-    g.list <- sapply(main.list[[i]]$cluster, function(x) crit(3, x))
     b.list <- sapply(main.list[[i]]$cluster, function(x) crit(1, x))
-    if(count_consecutive_trues(g.list)$memory > 15){
-      main.list[[i]]$state[count_consecutive_trues(g.list)$idx:nrow(main.list[[i]])] <- c(0)
-    }
     if(count_consecutive_trues(b.list)$memory > 6){
       main.list[[i]]$state[count_consecutive_trues(b.list)$idx:nrow(main.list[[i]])] <- c(22)
     }
@@ -210,8 +203,8 @@ for(i in 2:length(patno)){
 #check the properties of states
 med.s2 <- main %>% group_by(state) %>% summarize(M1= mean(M1), M2=mean(M2), M3=mean(M3), M4=mean(M4))
 med.s2$freq <- c(0)
-for(i in 1:23){
-  med.s2$freq[i] <- paste0(nrow(main %>% filter(state == i-1)),"(",round(nrow(main %>% filter(state == i-1))*100/8112,2),"%)")
+for(i in 1:22){
+  med.s2$freq[i] <- paste0(nrow(main %>% filter(state == i)),"(",round(nrow(main %>% filter(state == i))*100/8112,2),"%)")
 }
 
 #next states
@@ -246,6 +239,39 @@ for(i in 1:8){
 write.csv(main, file="main.csv")
 '
 main$action <- NA
+for(i in 1:nrow(main)){
+  if(main$N_MAX[i] != main$NUM[i]){
+    if((main$medcount.n[i] == 0)&(main$LEDD.n.d[i] == 0)){
+      main$action[i] <- 0
+    }
+    else if((main$medcount.n[i] == 0)&(main$LEDD.n.d[i] > 0)){
+      main$action[i] <- 1
+    }
+    else if((main$medcount.n[i] == 0)&(main$LEDD.n.d[i] < 0)){
+      main$action[i] <- 2
+    }
+    else if((main$medtype1.n[i] == 1)&(main$medtype2.n[i] == 0)&(main$medtype3.n[i] == 0)){
+      main$action[i] <- 3
+    }
+    else if((main$medtype1.n[i] == 0)&(main$medtype2.n[i] == 1)&(main$medtype3.n[i] == 0)){
+      main$action[i] <- 4
+    }
+    else if((main$medtype1.n[i] == 0)&(main$medtype2.n[i] == 0)&(main$medtype3.n[i] == 1)){
+      main$action[i] <- 5
+    }
+    else if((main$medcount.n[i] == 2)&(main$medcount.n[i] == 3)){
+      main$action[i] <- 6
+    }
+    else if(main$medcount.n[i] == -1){
+      main$action[i] <- 7
+    }
+    else if(main$medcount.n[i] < -1){
+      main$action[i] <- 8
+    }
+  }
+}
+
+if(F)'
 for(i in which(!is.na(main$medcount.n))){
   if((main$medcount.n[i] < 0)&(main$LEDD.n.d[i] < 0)){
     main$action[i] <- 1
@@ -263,28 +289,30 @@ for(i in which(!is.na(main$medcount.n))){
     main$action[i] <- 5
   }
 }
+'
 states <- main[c("state", "M1","M2","M3","M4","medc","LEDD.d")]
+
 states$M1 <- states$M1/max(states$M1)
 states$M2 <- states$M2/max(states$M2)
 states$M3 <- states$M3/max(states$M3)
 states$M4 <- states$M4/max(states$M4)
 
-states <- states %>% group_by(state) %>% summarize(M1=mean(M1), M2=mean(M2),M3=mean(M3), M4=mean(M4), medcount=mean(medc), LEDD.d = mean(LEDD.d))
+states <- states %>% group_by(state) %>% summarize(M1=mean(M1), M2=mean(M2),M3=mean(M3), M4=mean(M4), medcount=mean(medcount), LEDD.d = mean(LEDD.d))
 
 
 
 #creating state-action-state table
 actions <- list()
-for (i in 1:5) {
-  df <- data.frame(matrix(0, nrow = 23, ncol = 23))
+for (i in 1:9) {
+  df <- data.frame(matrix(0, nrow = 22, ncol = 22))
   actions[[i]] <- df
 }
 
-for (i in 1:5){
+for (i in 1:9){
   temp <- main %>% filter(action == i) %>% filter(NUM != N_MAX)
-  for (j in 1:23){
-    for (k in 1:23){
-      actions[[i]][j,k] <- nrow(temp %>% filter(state==j-1) %>% filter(state.n==k-1))/max(nrow(temp %>% filter(state==j-1)),1)
+  for (j in 1:22){
+    for (k in 1:22){
+      actions[[i]][j,k] <- nrow(temp %>% filter(state==j) %>% filter(state.n==k))/max(nrow(temp %>% filter(state==j)),1)
     }
   }
 }
@@ -406,30 +434,28 @@ load('myEnvironment.RData')
 install.packages("MDPtoolbox")
 library(MDPtoolbox)
 
-MDPsolv <- function(a,b,r){
-  reward <- data.frame(matrix(0,nrow=23,ncol=23))
-  for(i in 1:23){
-    for(j in 1:23){
+MDPsolv <- function(a,b,r,p){
+  reward <- data.frame(matrix(0,nrow=22,ncol=22))
+  for(i in 1:22){
+    for(j in 1:22){
       reward[i,j] = sqrt(states$M1[i]^2 + states$M2[i]^2 + states$M3[i]^2 + states$M4[j]^2) - sqrt(states$M1[j]^2 + states$M2[j]^2 + states$M3[j]^2 + states$M4[j]^2) +
         a*(states$medcount[i] - states$medcount[j]) + b*(states$LEDD.d[i] - states$LEDD.d[j])
     }
   }
   reward <- reward * 100
-  reward[1,] <- 80
-  reward[,1] <- 80
-  reward[,22] <- -70
-  reward[22,] <- -70
+  reward[,22] <- p
+  reward[22,] <- p
   
   #Probability
-  P <- array(0, c(23,23,5))
-  for(i in 1:5){
+  P <- array(0, c(22,22,9))
+  for(i in 1:9){
     P[,,i] <- as.array(as.matrix(actions[[i]]))
   }
-  R <- array(0, c(23,23,5)) #Reward
-  for(i in 1:5){
+  R <- array(0, c(22,22,9)) #Reward
+  for(i in 1:9){
     temp <- reward
-    for(k in 1:23){
-      for(j in 1:23){
+    for(k in 1:22){
+      for(j in 1:22){
         if(actions[[i]][k,j] == 0){
           temp[k,j] <- 0
         }
@@ -439,12 +465,19 @@ MDPsolv <- function(a,b,r){
   }
   return(mdp_policy_iteration(P,R,r)$policy)
 }
-MDPsolv(0.01, 0.01, 0.9)
-result <- data.frame(matrix(0, ncol=23, nrow=1))
+MDPsolv(0.01, 0.01, 0.9, 100)
+result <- data.frame(matrix(0, ncol=22, nrow=1))
 
-result[1,] <- MDPsolv(0.01, 0.01, 0.9)
-result[2,] <- MDPsolv(0.03, 0.03, 0.9)
-result[3,] <- MDPsolv(0.05, 0.05, 0.9)
-result[4,] <- MDPsolv(0.1, 0.1, 0.9)
-result[5,] <- MDPsolv(0.03, 0.03, 0.99)
+result[1,] <- MDPsolv(0.01, 0.01, 0.9, 100)
+result[2,] <- MDPsolv(0.03, 0.03, 0.9,100)
+result[3,] <- MDPsolv(0.05, 0.05, 0.9,100)
+result[4,] <- MDPsolv(0.1, 0.1, 0.9,100)
+result[5,] <- MDPsolv(0.03, 0.03, 0.99,100)
+result[6,] <- MDPsolv(0.1, 0.01, 0.9,100)
+result[7,] <- MDPsolv(0.01, 0.1, 0.9,100)
+
+pheatmap(result[,2:22], cluster_rows = F, cluster_cols = F)
+
+
+
 
