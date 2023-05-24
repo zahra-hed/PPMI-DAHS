@@ -259,7 +259,7 @@ for(i in 1:nrow(main)){
     else if((main$medtype1.n[i] == 0)&(main$medtype2.n[i] == 0)&(main$medtype3.n[i] == 1)){
       main$action[i] <- 5
     }
-    else if((main$medcount.n[i] == 2)&(main$medcount.n[i] == 3)){
+    else if((main$medcount.n[i] == 2)|(main$medcount.n[i] == 3)){
       main$action[i] <- 6
     }
     else if(main$medcount.n[i] == -1){
@@ -494,5 +494,6 @@ for (i in 1:9){
     }
   }
 }
-pheatmap(actions[[8]], cluster_rows = F, cluster_cols = F)
+pal <- colorRampPalette(c("white","black"))(100)
+pheatmap(freqs[[6]], cluster_rows = F, cluster_cols = F, color = pal)
 
