@@ -14,6 +14,12 @@ Features
 * MDS UPDRS2
 * MDS UPDRS3
 * MDS UPDRS4
+* Geriatic Depression Scale
+* Symbol Digits Modalities Test
+* Montreal Cognitive Assessment
+* Rem Sleep Disorder
+* Autonomic Dysfunction
+* Hoehn and Yahr Stage
 
  Patient Info
 * death
