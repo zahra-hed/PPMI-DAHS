@@ -4,7 +4,8 @@ import numpy as np
 import random
 from math import sqrt
 
-def divide_CV(input, CV):
+#divide the data for cross-validation
+def divide_CV(input, CV): 
     data_list = list(input)
     random.shuffle(data_list)
 
@@ -38,21 +39,24 @@ def run():
     # 
     CV = 5
 
-    patients = ts_df.iloc[:,0]
-    patients = set(patients)
-    subsets = divide_CV(patients, CV)
+    patients = ts_df.iloc[:,0] # Extract patient IDs
+    patients = set(patients) # Remove duplicates
+    subsets = divide_CV(patients, CV) # Split into 5 CV folds
 
     tot_sim, tot_const, tot_random, tot_sim_w, tot_real = [[],[]], [[],[]], [[],[]], [[],[]], [[],[]]
     LEDD_total = [0 for _ in range(7)] #sim_r, sim_w, worst_p, worst_p, constant, random, actual 
-    LEDD_total = {"optimal":[[],[]],
-                    "random":[[],[]],
-                    "const":[[],[]],
-                    "worst":[[],[]],
-                    "real":[[],[]]}
+    LEDD_total = {
+        "optimal": [[],[]],  # For optimal policy (reward & penalty models)
+        "random": [[],[]],   # For random actions
+        "const": [[],[]],   # For constant (no change) treatment
+        "worst": [[],[]],    # For worst-case policy
+        "real": [[],[]]      # For real-world observed treatment (Actual policy)
+    }
     tests = ["optimal", "random", "const", "worst", "real"]
 
     for i in range(CV+1):
         if i < CV:
+            # Use fold `i` for validation, rest for training
             valid_idx = subsets[i]
             train_idx = []
             for j in range(CV):
@@ -62,20 +66,23 @@ def run():
             valid = ts_df[ts_df['PATNO'].isin(valid_idx)]
             train = ts_df[ts_df['PATNO'].isin(train_idx)]
         else:
+            # On final iteration, use full dataset (no CV)
             valid = ts_df
 
         #create probablity matrix P
-        P_t = np.zeros(4*3*4).reshape(3,4,4)
-        P_v = np.zeros(4*3*4).reshape(3,4,4)
+        P_t = np.zeros(4*3*4).reshape(3,4,4) # Training transition matrix, calculated just from the train set
+        P_v = np.zeros(4*3*4).reshape(3,4,4) # Validation transition matrix, 
+        #calculated from the whole dataset to avoid unfairly favoring the trained policy
 
         for a in range(3):
             for s in range(4):
                 for s_ in range(3):
+                    #Computes P(s' | s, a) by counting transitions in the data
                     criteria = ((train['cluster'] == s) & (train['action'] == a))
                     criteria_2 = ((train['cluster'] == s) & (train['action'] == a) & (train['cluster_n'] == s_))
-                    P_t[a,s,s_] = criteria_2.sum()/criteria.sum()
+                    P_t[a,s,s_] = criteria_2.sum()/criteria.sum() 
 
-                P_t[a,s,3] = 1- sum(P_t[a,s,:])
+                P_t[a,s,3] = 1- sum(P_t[a,s,:]) 
 
         for a in range(3):
             for s in range(4):
@@ -87,8 +94,8 @@ def run():
                 P_v[a,s,3] = 1 - sum(P_v[a,s,:])
 
 
-        a, b = 0.01, 0.025
-        R_r = Reward(a, b,"reward")
+        a, b = 0.01, 0.025 # Penalty weights for actions
+        R_r = Reward(a, b,"reward") #Reward matrix
         mdp_model_r = mdptoolbox.mdp.PolicyIteration(P_t, R_r, 0.99)
         mdp_model_r.run()
         # if i < CV:
@@ -96,11 +103,12 @@ def run():
         # else:
         #     print(f'Full D / Reward Model / {mdp_model_r.policy}' , end = "")
 
-        R_p = Reward(a, b,"penalty")
+        R_p = Reward(a, b,"penalty") #Penalty matrix
         mdp_model_p = mdptoolbox.mdp.PolicyIteration(P_t, R_p, 0.99)
         mdp_model_p.run()
         #print(f' / Penalty Model / {mdp_model_p.policy}')
 
+        #Worst-case policies
         R_r_w = - R_r
         mdp_model_r_w = mdptoolbox.mdp.PolicyIteration(P_t, R_r_w, 0.99)
         mdp_model_r_w.run()
@@ -111,30 +119,35 @@ def run():
 
         #policy = {"r":mdp_model_r.policy, "p":mdp_model_p.policy, "r_w" : mdp_model_r_w.policy, "p_w" : mdp_model_r_w.policy}
         policy = {"r":mdp_model_r.policy, "p":mdp_model_p.policy, "r_w" : mdp_model_r_w.policy, "p_w" : mdp_model_r_w.policy}
+
         sim_reward, random_reward, const_reward, sim_reward_w, real_reward = [0,0], [0,0], [0,0], [0,0], [0,0]
 
         tot_n = 0
         for pat in valid_idx:
-            pat_d = valid[valid['PATNO'] == pat]
-            n = len(pat_d)
-            init_LEDD = list(pat_d['LEDD'])[0]
+            pat_d = valid[valid['PATNO'] == pat] # Get patient trajectory
+            n = len(pat_d) # Number of time steps
+            init_LEDD = list(pat_d['LEDD'])[0] # Initial LEDD value
+
+            # Initialize LEDD tracking for each strategy
             LEDD = {"optimal":[init_LEDD,init_LEDD],
                     "random":[init_LEDD,init_LEDD],
                     "const":[init_LEDD,init_LEDD],
                     "worst":[init_LEDD,init_LEDD],
                     "real":[0,0]} #sim_r, sim_p, worst_r, worst_p, constant, random
+            
             LEDD_traj = {"optimal":[init_LEDD,init_LEDD],
                     "random":[init_LEDD,init_LEDD],
                     "const":[init_LEDD,init_LEDD],
                     "worst":[init_LEDD,init_LEDD],
                     "real":[0,0]}
 
-            state = pat_d['cluster']
+            state = pat_d['cluster']  # Initial state
             state = [list(state)[0],list(state)[0]]
+            # state = ['state for the reward policy', 'state for the penalty policy']
             
             LEDD_total["real"].append(pat_d["LEDD"].mean())
 
-            #simul
+            # Simulate each strategy
             for t in tests:
                 if state[0] == 0:
                     if t == "optimal":

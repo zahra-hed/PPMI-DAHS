@@ -2,7 +2,7 @@
 #
 #   2. Medication Preprocessing
 #   
-#   -> Takes main_df, main_patients from [1_Feature_Preprocessing]
+#   -> Takes main_df, patients from [1_Feature_Preprocessing]
 #
 #   
 #   **3 major types of medications exists for Parkinson
@@ -22,12 +22,12 @@ library(dplyr)
 library(stringr)
 
 
-setwd("C:/Users/kosai/Desktop/school/ppmi/dataset")
+setwd("D:/Masters/thesis/code/PPMI_DAHS/dataset")
 
 #read csv
-medication <- read.csv('medication/LEDD_Concomitant_Medication_Log_11Jul2023.csv')
-main_df <- read.csv('main_df.csv')
-patients <- read.csv('patients.csv')
+medication <- read.csv('medication/LEDD_Concomitant_Medication_Log_23Jul2025.csv')
+main_df <- read.csv('generated_data/main_df.csv')
+patients <- read.csv('generated_data/patients.csv')
 
 #Possible ways of referring each medication types
 levodopa <- c("LEVOD", "Levodopa", "Madopar", "MADOPAR", "Sinemet", "SINEMET", "Duodopa", "DUODOPA", "CARBIDOPA", "SINEMENT",
@@ -42,7 +42,7 @@ dopamine_agonists <- c("PRAMIPEXOLE","Pramipexole","Ropin","ROPIN","Mirapexin", 
                        "PRAMPEXOLE", "APOKYN")
 
 #
-# add columns to medications 
+# add columns to medication
 #   med
 #     1 : levodopa
 #     2 : dopamine agonists
@@ -56,18 +56,19 @@ dopamine_agonists <- c("PRAMIPEXOLE","Pramipexole","Ropin","ROPIN","Mirapexin", 
 medication[c('med','S_Y','S_M','E_Y','E_M')] <- c(0)
 medication$STOPDT[which(medication$STOPDT == "")] <- "07/2023"
 
-for(i in 1:nrow(medication)){
-  if(sum(str_detect(medication$LEDTRT[i], levodopa)) > 0){
+for (i in 1:nrow(medication)){
+
+  if (sum(str_detect(medication$LEDTRT[i], levodopa)) > 0) {
     medication$med[i] <- 1
   }
-  else if(sum(str_detect(medication$LEDTRT[i], dopamine_agonists)) > 0){
+  else if (sum(str_detect(medication$LEDTRT[i], dopamine_agonists)) > 0) {
     medication$med[i] <- 2
   }
   else{
     medication$med[i] <- 3
   }
   
-  #Date adjustments
+  #Date adjustments (extracting dates form this format mm/yyyy)
   medication[i,c('S_Y','S_M','E_Y','E_M')] <- c(str_sub(medication$STARTDT[i],-2,-1),
                                                 str_sub(medication$STARTDT[i],1,2),
                                                 str_sub(medication$STOPDT[i],-2,-1),
@@ -86,20 +87,35 @@ medication <- medication %>% filter(PATNO %in% patients$PATNO)
 # Similar medicines are imputed using median from same type of medicines
 #
 
+##the code below returns NA if the value is not numeric (so LD x 0.33 will be turned into NA)
 medication$LEDD <- as.numeric(medication$LEDD)
-medication$LEDD[which(is.na(medication$LEDD))] = medication$LEDDSTRMG[which(is.na(medication$LEDD))] * medication$LEDDOSFRQ[which(is.na(medication$LEDD))] * medication$LEDDOSE[which(is.na(medication$LEDD))]
+
+##tries to calculate LEDD if other data is available
+medication$LEDD[which(is.na(medication$LEDD))] <-
+  medication$LEDDSTRMG[which(is.na(medication$LEDD))] *
+  medication$LEDDOSFRQ[which(is.na(medication$LEDD))] *
+  medication$LEDDOSE[which(is.na(medication$LEDD))]
 
 med_NA <- medication %>% filter(is.na(medication$LEDD))
 med_Full <- medication %>% filter(!(is.na(medication$LEDD)))
 
 
 #filled cheating sheet
-LEDD_ <- read.csv("LEDD.csv")
+LEDD_ <- read.csv("medication/LEDD.csv")
 for(i in 1:nrow(med_NA)){
-  med_NA$LEDD[i] <- (LEDD_ %>% filter(LEDTRT == med_NA$LEDTRT[i]))$LEDD[1]
+  led_value <- (LEDD_ %>% filter(LEDTRT == med_NA$LEDTRT[i]))$LEDD[1]
+  if (!is.na(led_value) && is.numeric(led_value)) {
+    med_NA$LEDD[i] <- led_value
+  }
 }
 
 medication <- rbind(med_NA, med_Full)
+
+#replace all of the records with LEDD = L with LEDD = 0
+medication$LEDD[medication$LEDD == "L"] <- 0
+
+# Drop all records in the medication DataFrame where LEDD is NA (NaN)
+# medication = medication[!is.na(medication$LEDD), ]
 
 #
 # monthly medication information
@@ -118,7 +134,7 @@ names(med_df) <- columns
 
 #
 # check the year-span for each patients
-# create black dataframe containing all possible months 
+# create blank dataframe containing all possible months 
 # Mark the months with medicines
 #
 
@@ -128,6 +144,8 @@ for(i in 1:nrow(patients)){
   last <- max(tmp$Y)
   
   #blank dataframe for years first -> last
+  ## One row per month in the patient's observation period
+  ## Default values of 0 (no medications)
   tmp <- data.frame(matrix(0, nrow = ((last - first + 1)*12), ncol = 8))
   names(tmp) <- columns
   
@@ -141,27 +159,28 @@ for(i in 1:nrow(patients)){
       tmp[count,'M'] <- m
       tmp[count,'PATNO'] <- patients$PATNO[i]
       
-      #add medication info
-      tmp_med_t <- tmp_med %>% filter((S_Y < y)|((S_Y == y) & (S_M <= m))) %>% 
+      #add active medication info
+      tmp_med_t <- tmp_med %>% filter((S_Y < y)|((S_Y == y) & (S_M <= m))) %>%
         filter((E_Y > y)|((E_Y == y) & (E_M >= m)))
-      if(nrow(tmp_med_t) != 0){
-        for(j in 1:nrow(tmp_med_t)){
-          if(tmp_med_t$med[j] == 1){
+
+      if (nrow(tmp_med_t) > 0){
+        for (j in 1:nrow(tmp_med_t)){
+          if (tmp_med_t$med[j] == 1) {
             tmp[count,'med1'] <- 1
           }
-          else if(tmp_med_t$med[j] == 2){
+          else if(tmp_med_t$med[j] == 2) {
             tmp[count,'med2'] <- 1
           }
-          else if(tmp_med_t$med[j] == 3){
+          else if(tmp_med_t$med[j] == 3) {
             tmp[count,'med3'] <- 1
           }
           tmp[count,'LEDD'] <- sum(tmp[count,'LEDD'], tmp_med_t$LEDD[j], na.rm=TRUE)
         }
       }
       count <- count + 1
-    }
+    } 
   }
-  
+
   #add the temporary dataframe into med_df
   med_df <- rbind(med_df, tmp)
 }
@@ -171,5 +190,6 @@ for(i in 1:nrow(patients)){
 #export dataframe
 #
 
+setwd("D:/Masters/thesis/code/PPMI_DAHS/dataset/generated_data")
 write.csv(med_df, file = "med_df.csv")
 

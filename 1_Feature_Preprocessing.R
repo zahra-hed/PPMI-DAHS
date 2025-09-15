@@ -13,14 +13,14 @@
 #     SCOPA-AUT; Autonomic Dysfunction 
 # 
 #   Sleep Disorder
-#     RSD; Rem Sleep Disorder 
+#     RBD; Rem Sleep Behavior Disorder
 #
 #   Neuropsychological Test
 #     MoCa; Montreal Cognitive Assessment
 #     SDMT; Symbol Digits Modalities Test
 #     GDS; Geriatic Depression Scale
 # 
-#   Bio Specimen
+#   Bio Specimen (Isn't it demographics??)
 #     Age
 #     Sex
 #     Education
@@ -32,16 +32,17 @@
 #
 #
 
-
+#loading the libraries
 library(dplyr)
 library(stringr)
 library(purrr)
 
-setwd("C:/Users/kosai/Desktop/school/ppmi/dataset/features")
+#setting the working directory to the features directory
+setwd("D:/Masters/thesis/code/PPMI_DAHS/dataset/features")
 
 #call features
 temp = list.files() 
-myfiles = lapply(temp, read.delim)
+#create a list of features datasets
 features_list <- list()
 
 #Adds M : MM, Y : YY columns
@@ -50,6 +51,7 @@ Add_DATE <- function(inputdata){
   inputdata$Y <- as.numeric(str_sub(inputdata$INFODT, -3,-1))
   inputdata$M <- as.numeric(str_sub(inputdata$INFODT, 1,2))
   
+  ##the second arrange will overwrite the first sort by M
   inputdata <- inputdata %>% group_by(PATNO) %>% arrange(M, .by_group=TRUE) %>% arrange(Y, .by_group=TRUE)
   
   #delete visits with the same YYMM; keep only the first one
@@ -66,27 +68,27 @@ for (i in 1:length(temp)) features_list[[temp[i]]] <- Add_DATE(read.csv(temp[i])
 
 #sum for GDS(2), RBD(9), SCOPA-AUT(10)
 features_list[[1]]$GDS <- rowSums(features_list[[1]][6:20], na.rm = TRUE)
-features_list[[7]]$RSD <- rowSums(features_list[[7]][7:27], na.rm = TRUE)
+features_list[[7]]$RBD <- rowSums(features_list[[7]][7:27], na.rm = TRUE)
 features_list[[8]]$SCOPA_AUT <- rowSums(features_list[[8]][c(7:30,32:34,36,38,40)], na.rm = TRUE)
 
 
 #a full dataframe
 main_df <- features_list %>% reduce(full_join, by = c('PATNO','Y','M'))
-columns <- c('PATNO','Y','M','NHY','NP1RTOT','NP2PTOT', 'NP3TOT','NP4TOT','SCOPA_AUT','RSD','MCATOT','SDMTOTAL','GDS')
+columns <- c('PATNO','Y','M','NHY','NP1RTOT','NP2PTOT', 'NP3TOT','NP4TOT','SCOPA_AUT','RBD','MCATOT','SDMTOTAL','GDS')
 
 main_df <- main_df[columns]
+
 #Adjust columns names
-names(main_df)[4:13] <- c('HNY','MU1','MU2','MU3','MU4','SAUT','RSD','MOCA','SDMT','GDS')
+names(main_df)[4:13] <- c('HNY','MU1','MU2','MU3','MU4','SAUT','RBD','MOCA','SDMT','GDS')
 main_df <- main_df %>% group_by(PATNO) %>% arrange(M, .by_group = TRUE) %>% arrange(Y, .by_group = TRUE)
 
 # Add biospecimen / socio-economic data
-setwd("C:/Users/kosai/Desktop/school/ppmi/dataset/biospecimen")
+setwd("D:/Masters/thesis/code/PPMI_DAHS/dataset/biospecimen")
 
 temp = list.files() 
-myfiles = lapply(temp, read.delim)
 bio_list <- list()
 
-for (i in 1:length(temp)) bio_list[[temp[i]]] <-read.csv(temp[i])
+for (i in 1:length(temp)) bio_list[[temp[i]]] <- read.csv(temp[i])
 
 #extract only the wanted information: birth/sex/edu/cohort
 patients <- bio_list %>% reduce(full_join, by = c('PATNO'))
@@ -107,29 +109,39 @@ patients <- patients %>% group_by(PATNO) %>% summarize(EDUCYRS = max(EDUCYRS),
 #   - More than 5+ year time span
 #
 
-#Parkinson only
+#filter both dataframes for Parkinson patients only
 patients <- patients %>% filter(COHORT == 1)
 main_df <- main_df %>% filter(PATNO %in% patients$PATNO)
 
-#first fill in the missing HNY - where it is missing(first)
-for(i in nrow(main_df):2){
-  if(main_df$PATNO[i] != main_df$PATNO[i-1]){
-    if(is.na(main_df$HNY[i])){
-      main_df$HNY[i] <- main_df$HNY[i+1]
+#fill in the missing HNY - where it is missing(first = initial stage)
+## this code only fills the missing HNY if its the first record with that PATNO (initial stage?)
+for (i in nrow(main_df):2){
+  if (main_df$PATNO[i] != main_df$PATNO[i - 1]) {
+    if (is.na(main_df$HNY[i])) {
+      for (j in (i + 1):nrow(main_df)) {
+        if (main_df$PATNO[j] == main_df$PATNO[i] && !is.na(main_df$HNY[j])) {
+          main_df$HNY[i] <- main_df$HNY[j]
+          break
+        }
+      }
     }
   }
 }
 
 
-#create a list from dataframe / patients
-#Start HNY stage of 2 & more than 7 year time span
+#Keep only the records that have a initial ...
+#HNY stage of 2 & more than 7 year time span
+
+##then why is it at least 5 distinct years??
+
 main_list <- list()
 count <- 1
 
-for(i in 1:nrow(patients)){
+for (i in 1:nrow(patients)){
   tmp <- main_df %>% filter(PATNO == patients$PATNO[i])
-
-  if((nrow(distinct(tmp['Y'])) > 4) & (tmp[1,'HNY'] <= 2)){
+  
+  ##has data for at least 5 years
+  if ((nrow(distinct(tmp["Y"])) > 4) && (tmp[1, "HNY"] <= 2)) {
     main_list[[count]] <- tmp
     count <- count + 1
   }
@@ -141,7 +153,11 @@ main_df <- main_list[[1]]
 for(i in 2:length(main_list)){
   main_df <- rbind(main_df, main_list[[i]])
 }
-patients <- patients %>% filter(PATNO %in% unlist(distinct(main_df['PATNO'])))
+
+##we can use this instead of the above for loop
+#main_df <- bind_rows(main_list)
+
+patients <- patients %>% filter(PATNO %in% unlist(distinct(main_df["PATNO"])))
 
 
 #
@@ -149,9 +165,6 @@ patients <- patients %>% filter(PATNO %in% unlist(distinct(main_df['PATNO'])))
 # export the final dataframe
 #
 
-setwd("C:/Users/kosai/Desktop/school/ppmi/dataset")
+setwd("D:/Masters/thesis/code/PPMI_DAHS/dataset/generated_data")
 write.csv(main_df, file = "main_df.csv")
-write.csv(patients, file = 'patients.csv')
-
-
-
+write.csv(patients, file = "patients.csv")
